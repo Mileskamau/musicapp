@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +37,8 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen>
   @override
   Widget build(BuildContext context) {
     final eqService = ref.watch(equalizerServiceProvider);
+    final isSupportedAsync = ref.watch(equalizerSupportedProvider);
+    final isSupported = isSupportedAsync.valueOrNull ?? false;
 
     return Scaffold(
       body: Container(
@@ -63,6 +66,12 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Show iOS warning
+                      if (Platform.isIOS)
+                        _buildIOSWarning(),
+                      // Show Android-specific warning if not supported
+                      if (!Platform.isIOS && !isSupported)
+                        _buildUnsupportedWarning(),
                       _buildEnableToggle(eqService),
                       const SizedBox(height: AppConstants.spacingXL),
                       _buildPresetSelector(eqService),
@@ -82,6 +91,64 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen>
         ),
       ),
     );
+  }
+
+  Widget _buildIOSWarning() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppConstants.spacingM),
+      padding: const EdgeInsets.all(AppConstants.spacingM),
+      decoration: BoxDecoration(
+        color: AppTheme.warningColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        border: Border.all(
+          color: AppTheme.warningColor.withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: AppTheme.warningColor,
+          ),
+          const SizedBox(width: AppConstants.spacingM),
+          Expanded(
+            child: Text(
+              'Equalizer is not supported on iOS.',
+              style: AppTheme.bodySmall.copyWith(color: AppTheme.warningColor),
+            ),
+          ),
+        ],
+      ),
+    ).animate(controller: _slideController).fadeIn().slideY(begin: -0.1);
+  }
+
+  Widget _buildUnsupportedWarning() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppConstants.spacingM),
+      padding: const EdgeInsets.all(AppConstants.spacingM),
+      decoration: BoxDecoration(
+        color: AppTheme.warningColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        border: Border.all(
+          color: AppTheme.warningColor.withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: AppTheme.warningColor,
+          ),
+          const SizedBox(width: AppConstants.spacingM),
+          Expanded(
+            child: Text(
+              'Equalizer is not supported with the current audio output (Bluetooth).',
+              style: AppTheme.bodySmall.copyWith(color: AppTheme.warningColor),
+            ),
+          ),
+        ],
+      ),
+    ).animate(controller: _slideController).fadeIn().slideY(begin: -0.1);
   }
 
   Widget _buildHeader() {

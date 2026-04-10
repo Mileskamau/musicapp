@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/music_provider.dart';
-import '../../../core/services/audio_service.dart';
+import '../../../core/services/audio_engine.dart';
 import '../../../core/services/music_query_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -22,6 +22,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _replayGainEnabled = AppConstants.defaultReplayGain;
   String _audioQuality = AppConstants.qualityHigh;
   String _defaultScreen = 'home';
+  bool _glassmorphismEnabled = false;
   bool _loaded = false;
 
   @override
@@ -40,8 +41,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _replayGainEnabled = prefs.getBool(AppConstants.replayGainKey) ?? AppConstants.defaultReplayGain;
       _audioQuality = prefs.getString(AppConstants.audioQualityKey) ?? AppConstants.qualityHigh;
       _defaultScreen = prefs.getString(AppConstants.defaultScreenKey) ?? 'home';
+      _glassmorphismEnabled = prefs.getBool(AppConstants.glassmorphismKey) ?? false;
       _loaded = true;
     });
+    
+    // Also update the provider
+    ref.read(glassmorphismProvider.notifier).state = _glassmorphismEnabled;
   }
 
   Future<void> _saveBool(String key, bool value) async {
@@ -183,6 +188,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             onTap: () {
               _showDefaultScreenPicker();
+            },
+          ),
+          _buildDivider(),
+          _buildSwitchTile(
+            'Glassmorphism Theme',
+            'Enable translucent, frosted-glass surfaces',
+            Icons.blur_on_rounded,
+            _glassmorphismEnabled,
+            (value) {
+              setState(() => _glassmorphismEnabled = value);
+              _saveBool(AppConstants.glassmorphismKey, value);
+              // Also update the provider for real-time theme switching
+              ref.read(glassmorphismProvider.notifier).state = value;
             },
           ),
         ],

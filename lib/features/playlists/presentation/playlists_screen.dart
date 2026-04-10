@@ -5,7 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/song_model.dart';
 import '../../../core/providers/music_provider.dart';
-import '../../../core/services/audio_service.dart';
+import '../../../core/services/audio_engine.dart';
 
 class PlaylistsScreen extends ConsumerStatefulWidget {
   const PlaylistsScreen({super.key});
@@ -310,7 +310,7 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
                               : Text(song.formattedDuration, style: AppTheme.bodySmall),
                           onTap: () {
                             Navigator.pop(context);
-                            if (!song.fileExists) {
+                            if (song.fileExists != true) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('File not found: ${song.title}'),
@@ -336,7 +336,7 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
     final audioService = AudioEngineService();
     await audioService.loadPlaylist(songs, initialIndex: 0);
     if (shuffle) {
-      await audioService.toggleShuffle();
+      audioService.toggleShuffle();
     }
     await audioService.play();
     if (mounted) {
@@ -425,7 +425,7 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
     final songs = <SongModel>[];
     for (final id in playlist.songIds) {
       final match = allSongs.where((s) => s.id == id);
-      if (match.isNotEmpty && match.first.fileExists) {
+      if (match.isNotEmpty && match.first.fileExists == true) {
         songs.add(match.first);
       }
     }

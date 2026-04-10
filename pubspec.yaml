@@ -1,19 +1,17 @@
-name: musicply
+name: musiq
 description: "A premium music player app with modern dark theme and smooth animations."
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.10.4
+  sdk: ^3.10.0
 
 dependencies:
   flutter:
     sdk: flutter
 
   # Audio playback
-  just_audio: ^0.9.36
-  audio_service: ^0.18.12
-  audio_session: ^0.1.18
+  just_audio: ^0.10.5
   
   # Local music library
   on_audio_query: ^2.9.0
@@ -42,6 +40,26 @@ dependencies:
   uuid: ^4.2.1
   equatable: ^2.0.5
   json_annotation: ^4.8.1
+  share_plus: ^7.2.1
+  
+  # Image handling
+  image_picker: ^1.0.7
+  palette_generator: ^0.3.3+4
+  
+  # Network for lyrics
+  http: ^1.2.0
+  
+  # File picker for backup/restore
+  file_picker: ^8.0.0+1
+  
+  # Sensors for particle effect
+  sensors_plus: ^4.0.2
+  
+  # Image processing for blur
+  image: ^4.1.7
+
+  # Crypto for backup checksums
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
@@ -55,3 +73,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/logo.png

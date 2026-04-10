@@ -6,7 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/audio_provider.dart';
 import '../../../core/models/song_model.dart';
-import '../../../core/services/audio_service.dart';
+import '../../../core/services/audio_engine.dart';
 
 class MiniPlayer extends ConsumerStatefulWidget {
   const MiniPlayer({super.key});

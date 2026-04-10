@@ -3,12 +3,14 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' show LoopMode;
 import 'package:on_audio_query/on_audio_query.dart' hide SongModel;
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/audio_provider.dart';
 import '../../../core/providers/music_provider.dart';
 import '../../../core/models/song_model.dart';
-import '../../../core/services/audio_service.dart';
+import '../../../core/services/audio_engine.dart';
+import '../../../core/services/audio_output_service.dart';
 import 'equalizer_screen.dart';
 
 class NowPlayingScreen extends ConsumerStatefulWidget {
@@ -376,12 +378,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> with Ticker
           IconButton(
             icon: const Icon(Icons.devices_rounded),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('No output devices available'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
+              _showOutputDevicesSheet();
             },
           ).animate().fadeIn(delay: 1100.ms),
           IconButton(
@@ -401,16 +398,126 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> with Ticker
             onPressed: () {
               final song = audioService.currentSong;
               if (song != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Now playing: ${song.title} by ${song.artist}'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
+                _shareSong(song);
               }
             },
           ).animate().fadeIn(delay: 1400.ms),
         ],
+      ),
+    );
+  }
+
+  void _showOutputDevicesSheet() async {
+    final outputService = AudioOutputService();
+    await outputService.init();
+    
+    final devices = await outputService.getOutputDevices();
+    final currentDevice = outputService.currentDevice;
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppConstants.spacingL),
+              child: Text('Select Output', style: AppTheme.headlineSmall),
+            ),
+            ...devices.map((device) => RadioListTile<OutputDevice>(
+              value: device,
+              groupValue: currentDevice,
+              title: Row(
+                children: [
+                  Icon(
+                    outputService.getDeviceIcon(device),
+                    color: AppTheme.textSecondary,
+                  ),
+                  const SizedBox(width: AppConstants.spacingM),
+                  Text(device.name),
+                ],
+              ),
+              onChanged: (value) async {
+                if (value != null) {
+                  final success = await outputService.setOutputDevice(value);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(success ? 'Output changed to ${device.name}' : 'Failed to change output'),
+                      ),
+                    );
+                  }
+                }
+              },
+            )),
+            if (devices.length == 1)
+              Padding(
+                padding: const EdgeInsets.all(AppConstants.spacingL),
+                child: Text(
+                  'No other output devices available',
+                  style: AppTheme.bodySmall,
+                ),
+              ),
+            const SizedBox(height: AppConstants.spacingM),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _shareSong(SongModel song) {
+    final text = 'Now playing: "${song.title}" by ${song.artist} from album "${song.album}"';
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'Share',
+          onPressed: () {
+            _showShareOptions(song);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showShareOptions(SongModel song) {
+    final shareText = 'Now playing: "${song.title}" by ${song.artist} from album "${song.album}"';
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppConstants.spacingL),
+              child: Text('Share', style: AppTheme.headlineSmall),
+            ),
+            ListTile(
+              leading: const Icon(Icons.share_rounded),
+              title: const Text('Share via apps'),
+              subtitle: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+              onTap: () {
+                Navigator.pop(context);
+                Share.share(shareText);
+              },
+            ),
+            const SizedBox(height: AppConstants.spacingM),
+          ],
+        ),
       ),
     );
   }

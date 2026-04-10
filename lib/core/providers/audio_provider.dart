@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/song_model.dart';
-import '../services/audio_service.dart';
+import '../services/audio_engine.dart';
 
 // Audio Service Provider
 final audioServiceProvider = Provider<AudioEngineService>((ref) {
@@ -23,6 +23,20 @@ final currentSongProvider = Provider<SongModel?>((ref) {
 final queueProvider = StreamProvider<List<SongModel>>((ref) {
   final audioService = ref.watch(audioServiceProvider);
   return audioService.songQueueStream;
+});
+
+// Queue IDs Provider - optimized for large lists to reduce rebuilds
+final queueIdsProvider = Provider<List<String>>((ref) {
+  final queueAsync = ref.watch(queueProvider);
+  return queueAsync.maybeWhen(
+    data: (songs) => songs.map((s) => s.id).toList(),
+    orElse: () => [],
+  );
+});
+
+// Queue Length Provider - optimized count using select
+final queueLengthProvider = Provider<int>((ref) {
+  return ref.watch(queueIdsProvider.select((ids) => ids.length));
 });
 
 // Is Playing Provider

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:musicply/main.dart';
-import 'package:musicply/features/settings/presentation/settings_screen.dart';
-import 'package:musicply/features/playlists/presentation/playlists_screen.dart';
-import 'package:musicply/features/search/presentation/search_screen.dart';
-import 'package:musicply/features/library/presentation/library_screen.dart';
+import 'package:musiq/main.dart';
+import 'package:musiq/features/settings/presentation/settings_screen.dart';
+import 'package:musiq/features/playlists/presentation/playlists_screen.dart';
+import 'package:musiq/features/search/presentation/search_screen.dart';
+import 'package:musiq/features/library/presentation/library_screen.dart';
 
 void main() {
   testWidgets('App should render without errors', (WidgetTester tester) async {

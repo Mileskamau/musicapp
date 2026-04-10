@@ -1,13 +1,25 @@
 import 'dart:async';
-import 'dart:async';
+import 'dart:io';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song_model.dart';
+import '../constants/app_constants.dart';
 import 'equalizer_service.dart';
 
 /// Audio handler that implements [BaseAudioHandler] for background playback,
 /// notification controls, media button handling, and audio focus management.
+/// 
+/// Android Auto Support:
+/// The audio_service package provides Android Auto support through its MediaSession.
+/// To enable full Android Auto functionality:
+/// 1. Configure AndroidManifest.xml with car intent filters
+/// 2. Implement MediaBrowserServiceCallback methods (onLoadChildren, onGetMediaItem, onSearch)
+/// 3. The current BaseAudioHandler implementation exposes the media item via [mediaItem] stream
+/// 
+/// The app will appear in Android Auto launcher when the phone is connected to a car.
 class AudioEngineService extends BaseAudioHandler {
   static final AudioEngineService _instance = AudioEngineService._internal();
   factory AudioEngineService() => _instance;
@@ -102,6 +114,40 @@ class AudioEngineService extends BaseAudioHandler {
   // Check if loading
   bool get isLoading => _audioPlayer.processingState == ProcessingState.loading;
 
+  /// Get audio focus behavior from settings
+  Future<String> _getAudioFocusBehavior() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(AppConstants.audioFocusBehaviorKey) ?? AppConstants.audioFocusPause;
+    } catch (e) {
+      return AppConstants.audioFocusPause;
+    }
+  }
+
+  /// Handle audio interruption based on user setting
+  Future<void> _handleInterruption(AudioInterruptionType type, bool isBegin, {bool isDucking = false}) async {
+    final behavior = await _getAudioFocusBehavior();
+    
+    if (isBegin) {
+      if (behavior == AppConstants.audioFocusDuck) {
+        await _audioPlayer.setVolume(_volume * 0.3);
+      } else if (behavior == AppConstants.audioFocusPause) {
+        await pause();
+      }
+      // Ignore does nothing
+    } else {
+      if (behavior == AppConstants.audioFocusDuck) {
+        await _audioPlayer.setVolume(_volume);
+      } else if (behavior == AppConstants.audioFocusPause) {
+        final isPlaying = _audioPlayer.playing;
+        if (!isPlaying) {
+          await _audioPlayer.play();
+        }
+      }
+      // Ignore does nothing
+    }
+  }
+
   /// Initialize the audio engine with proper session configuration,
   /// audio focus handling, and media button events.
   Future<void> init() async {
@@ -132,19 +178,20 @@ class AudioEngineService extends BaseAudioHandler {
           if (event.begin) {
             switch (event.type) {
               case AudioInterruptionType.duck:
-                _audioPlayer.setVolume(_volume * 0.5);
+                _handleInterruption(AudioInterruptionType.duck, true, isDucking: true);
                 break;
               case AudioInterruptionType.pause:
               case AudioInterruptionType.unknown:
-                pause();
+                _handleInterruption(AudioInterruptionType.pause, true);
                 break;
             }
           } else {
             switch (event.type) {
               case AudioInterruptionType.duck:
-                _audioPlayer.setVolume(_volume);
+                _handleInterruption(AudioInterruptionType.duck, false, isDucking: true);
                 break;
               case AudioInterruptionType.pause:
+                _handleInterruption(AudioInterruptionType.pause, false);
                 break;
               case AudioInterruptionType.unknown:
                 break;
@@ -213,7 +260,7 @@ class AudioEngineService extends BaseAudioHandler {
     final validIndices = <int>[];
 
     for (int i = 0; i < songs.length; i++) {
-      if (songs[i].fileExists) {
+      if (songs[i].fileExists == true) {
         validSongs.add(songs[i]);
         validIndices.add(i);
       }
@@ -384,7 +431,7 @@ class AudioEngineService extends BaseAudioHandler {
 
   /// Add a song to the end of the queue.
   Future<void> addToQueue(SongModel song) async {
-    if (!song.fileExists) return;
+    if (song.fileExists != true) return;
     _songQueue.add(song);
     await _playlist.add(AudioSource.uri(
       Uri.file(song.uri),

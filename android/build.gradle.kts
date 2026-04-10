@@ -17,8 +17,8 @@ fun manifestPackageName(manifestFile: File): String? {
     }.newDocumentBuilder()
 
     val manifest = manifestFile.inputStream().use { stream ->
-        documentBuilder.parse(stream)
-    }.documentElement
+        documentBuilder.parse(stream).documentElement
+    }
 
     return manifest.getAttribute("package").takeIf { it.isNotBlank() }
 }
@@ -57,19 +57,24 @@ subprojects {
 }
 
 subprojects {
-    project.evaluationDependsOn(":app")
-}
-
-allprojects {
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    plugins.withId("com.android.library") {
+        val androidExtension = extensions.findByName("android") ?: return@withId
+        val getCompileSdk = androidExtension.javaClass.methods.firstOrNull {
+            it.name == "getCompileSdkVersion" && it.parameterCount == 0
+        }
+        val compileSdk = getCompileSdk?.invoke(androidExtension) as? Int
+        
+        if (compileSdk == null) {
+            val setCompileSdk = androidExtension.javaClass.methods.firstOrNull {
+                it.name == "setCompileSdk" && it.parameterCount == 1
+            }
+            setCompileSdk?.invoke(androidExtension, 35)
         }
     }
-    tasks.withType<JavaCompile>().configureEach {
-        sourceCompatibility = JavaVersion.VERSION_17.toString()
-        targetCompatibility = JavaVersion.VERSION_17.toString()
-    }
+}
+
+subprojects {
+    project.evaluationDependsOn(":app")
 }
 
 tasks.register<Delete>("clean") {

@@ -1,12 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
-import 'core/services/audio_service.dart';
+import 'core/services/audio_engine.dart';
 import 'core/providers/music_provider.dart';
+import 'core/models/song_model.dart';
+import 'core/models/playlist_model.dart';
+import 'core/models/background_settings.dart';
+import 'core/models/lyrics_model.dart';
+import 'core/models/smart_playlist_model.dart';
 import 'features/home/presentation/home_screen.dart';
 import 'features/library/presentation/library_screen.dart';
 import 'features/search/presentation/search_screen.dart';
@@ -15,6 +22,7 @@ import 'features/settings/presentation/settings_screen.dart';
 import 'features/player/presentation/mini_player.dart';
 import 'features/player/presentation/now_playing_screen.dart';
 import 'features/player/presentation/equalizer_screen.dart';
+import 'features/player/presentation/tag_editor_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,21 +32,42 @@ void main() async {
     FlutterError.presentError(details);
   };
 
+  // Platform check first - no need to initialize services for non-Android
+  if (!Platform.isAndroid) {
+    runApp(const ProviderScope(child: MusiqAppNonAndroid()));
+    return;
+  }
+
+  // Initialize SharedPreferences for theme settings
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final isGlassmorphism = prefs.getBool(AppConstants.glassmorphismKey) ?? false;
+    // Initialize the provider with persisted value
+    // This will be used when the app starts
+  } catch (e) {
+    // Non-fatal
+  }
+
   // Initialize Hive
   try {
     await Hive.initFlutter();
+    
+    // Register Hive adapters for new models
+    Hive.registerAdapter(BackgroundSettingsAdapter());
+    Hive.registerAdapter(LyricsModelAdapter());
+    Hive.registerAdapter(LyricLineAdapter());
+    Hive.registerAdapter(SmartRuleAdapter());
+    Hive.registerAdapter(SmartPlaylistRuleAdapter());
   } catch (e) {
     // Hive init failure is non-fatal, app can still run
   }
 
-  // Initialize audio service for background playback
-  // Wrapped in try-catch: if it fails, the app should still launch
+  // Initialize audio engine
   try {
-    await AudioEngineService().init();
+    final audioEngine = AudioEngineService();
+    await audioEngine.initialize();
   } catch (e) {
-    // Audio service init can fail if previous instance wasn't properly
-    // disposed (e.g., app killed by Android and restarted).
-    // The app will still work; audio can be initialized later on demand.
+    // Audio init can fail, app will still work
   }
 
   // Set preferred orientations
@@ -73,16 +102,72 @@ void main() async {
   );
 }
 
-class MusicPlyApp extends StatelessWidget {
-  const MusicPlyApp({super.key});
+/// Non-Android fallback app widget
+class MusiqAppNonAndroid extends StatelessWidget {
+  const MusiqAppNonAndroid({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: AppConstants.appName,
+      title: 'musiq',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
+      home: Scaffold(
+        backgroundColor: AppTheme.backgroundColor,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppConstants.spacingXL),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.music_off_rounded,
+                  size: 80,
+                  color: AppTheme.textSecondary,
+                ),
+                const SizedBox(height: AppConstants.spacingL),
+                Text(
+                  'Platform Not Supported',
+                  style: AppTheme.headlineMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppConstants.spacingM),
+                Text(
+                  'musiq currently supports Android only.\nPlease run this app on an Android device.',
+                  style: AppTheme.bodyLarge.copyWith(color: AppTheme.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class MusicPlyApp extends ConsumerWidget {
+  const MusicPlyApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isGlassmorphism = ref.watch(glassmorphismProvider);
+    final theme = isGlassmorphism ? AppTheme.glassTheme : AppTheme.darkTheme;
+
+    return MaterialApp(
+      title: AppConstants.appName,
+      debugShowCheckedModeBanner: false,
+      theme: theme,
       home: const MainScreen(),
+      onGenerateRoute: (settings) {
+        if (settings.name == '/tag-editor') {
+          final song = settings.arguments as SongModel;
+          return MaterialPageRoute(
+            builder: (context) => TagEditorScreen(song: song),
+          );
+        }
+        return null;
+      },
       routes: {
         '/now-playing': (context) => const NowPlayingScreen(),
         '/settings': (context) => const SettingsScreen(),

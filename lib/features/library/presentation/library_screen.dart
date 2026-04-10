@@ -7,7 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/song_model.dart';
 import '../../../core/providers/music_provider.dart';
-import '../../../core/services/audio_service.dart';
+import '../../../core/services/audio_engine.dart';
 import '../../../core/services/music_query_service.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -106,7 +106,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
   }
 
   Widget _buildSongsTab() {
-    final songsAsync = ref.watch(allSongsProvider);
+    final songsAsync = ref.watch(paginatedSongsProvider);
 
     return songsAsync.when(
       loading: () => const Center(
@@ -130,7 +130,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
                 ),
                 const SizedBox(height: AppConstants.spacingM),
                 ElevatedButton.icon(
-                  onPressed: () => ref.invalidate(allSongsProvider),
+                  onPressed: () => ref.read(paginatedSongsProvider.notifier).refresh(),
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Rescan'),
                 ),
@@ -139,16 +139,37 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.only(
-            top: AppConstants.spacingM,
-            bottom: AppConstants.miniPlayerHeight + AppConstants.bottomNavHeight,
-          ),
-          itemCount: songs.length,
-          itemBuilder: (context, index) {
-            final song = songs[index];
-            return _buildSongTile(song, index);
+        final notifier = ref.read(paginatedSongsProvider.notifier);
+
+        return NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollEndNotification) {
+              final metrics = notification.metrics;
+              if (metrics.pixels >= metrics.maxScrollExtent - 200) {
+                notifier.loadNextPage();
+              }
+            }
+            return false;
           },
+          child: ListView.builder(
+            padding: const EdgeInsets.only(
+              top: AppConstants.spacingM,
+              bottom: AppConstants.miniPlayerHeight + AppConstants.bottomNavHeight,
+            ),
+            itemCount: songs.length + (notifier.hasMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == songs.length) {
+                return const Padding(
+                  padding: EdgeInsets.all(AppConstants.spacingM),
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                  ),
+                );
+              }
+              final song = songs[index];
+              return _buildSongTile(song, index);
+            },
+          ),
         );
       },
     );
@@ -319,64 +340,86 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
   }
 
   Widget _buildFoldersTab() {
-    final folders = ref.watch(foldersProvider);
+    final foldersAsync = ref.watch(foldersProvider);
 
-    if (folders.isEmpty) {
-      return Center(
+    return foldersAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+      ),
+      error: (error, stack) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.folder_rounded, color: AppTheme.textSecondary, size: 64),
+            const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 48),
             const SizedBox(height: AppConstants.spacingM),
-            Text('No folders found', style: AppTheme.titleMedium),
-            const SizedBox(height: AppConstants.spacingS),
-            Text('Add music to your device to see folders', style: AppTheme.bodySmall),
+            Text('Error loading folders', style: AppTheme.titleMedium),
+            const SizedBox(height: AppConstants.spacingM),
+            ElevatedButton(
+              onPressed: () => ref.invalidate(foldersProvider),
+              child: const Text('Retry'),
+            ),
           ],
         ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.only(
-        top: AppConstants.spacingM,
-        bottom: AppConstants.miniPlayerHeight + AppConstants.bottomNavHeight,
       ),
-      itemCount: folders.length,
-      itemBuilder: (context, index) {
-        final folder = folders[index];
-        final folderName = folder.split(RegExp(r'[/\\]')).last;
-        final songs = MusicQueryService().getSongsByFolder(folder);
+      data: (folders) {
+        if (folders.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.folder_rounded, color: AppTheme.textSecondary, size: 64),
+                const SizedBox(height: AppConstants.spacingM),
+                Text('No folders found', style: AppTheme.titleMedium),
+                const SizedBox(height: AppConstants.spacingS),
+                Text('Add music to your device to see folders', style: AppTheme.bodySmall),
+              ],
+            ),
+          );
+        }
 
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppConstants.spacingL,
-            vertical: AppConstants.spacingS,
+        return ListView.builder(
+          padding: const EdgeInsets.only(
+            top: AppConstants.spacingM,
+            bottom: AppConstants.miniPlayerHeight + AppConstants.bottomNavHeight,
           ),
-          leading: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-              color: AppTheme.cardColor,
-            ),
-            child: const Icon(
-              Icons.folder_rounded,
-              color: AppTheme.warningColor,
-              size: 28,
-            ),
-          ),
-          title: Text(
-            folderName.isNotEmpty ? folderName : folder,
-            style: AppTheme.titleMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            '${songs.length} songs',
-            style: AppTheme.bodySmall,
-          ),
-          onTap: () {
-            _showFolderSongs(folder, songs);
+          itemCount: folders.length,
+          itemBuilder: (context, index) {
+            final folder = folders[index];
+            final folderName = folder.path.split(RegExp(r'[/\\]')).last;
+            final songs = MusicQueryService().getSongsByFolder(folder.path);
+
+            return ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingL,
+                vertical: AppConstants.spacingS,
+              ),
+              leading: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                  color: AppTheme.cardColor,
+                ),
+                child: const Icon(
+                  Icons.folder_rounded,
+                  color: AppTheme.warningColor,
+                  size: 28,
+                ),
+              ),
+              title: Text(
+                folderName.isNotEmpty ? folderName : folder.path,
+                style: AppTheme.titleMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                '${songs.length} songs',
+                style: AppTheme.bodySmall,
+              ),
+              onTap: () {
+                _showFolderSongs(folder.path, songs);
+              },
+            );
           },
         );
       },
@@ -713,7 +756,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
               title: const Text('Play'),
               onTap: () {
                 Navigator.pop(context);
-                if (!song.fileExists) {
+                if (song.fileExists != true) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('File not found: ${song.title}'),
@@ -732,7 +775,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
               title: const Text('Add to Queue'),
               onTap: () async {
                 Navigator.pop(context);
-                if (!song.fileExists) {
+                if (song.fileExists != true) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('File not found: ${song.title}'),
@@ -789,7 +832,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
                         Text('Duration: ${song.formattedDuration}'),
                         Text('Size: ${song.formattedSize}'),
                         Text('Path: ${song.uri}'),
-                        Text('Exists: ${song.fileExists ? "Yes" : "No"}'),
+                        Text('Exists: ${song.fileExists == true ? "Yes" : (song.fileExists == false ? "No" : "Unknown")}'),
                       ],
                     ),
                     actions: [
@@ -852,7 +895,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
                         trailing: Text(song.formattedDuration, style: AppTheme.bodySmall),
                         onTap: () {
                           Navigator.pop(context);
-                          if (!song.fileExists) {
+                          if (song.fileExists != true) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('File not found: ${song.title}'),
@@ -971,7 +1014,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
                         trailing: Text(song.formattedDuration, style: AppTheme.bodySmall),
                         onTap: () {
                           Navigator.pop(context);
-                          if (!song.fileExists) {
+                          if (song.fileExists != true) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('File not found: ${song.title}'),

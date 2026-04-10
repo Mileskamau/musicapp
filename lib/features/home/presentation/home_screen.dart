@@ -7,7 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/song_model.dart';
 import '../../../core/providers/music_provider.dart';
-import '../../../core/services/audio_service.dart';
+import '../../../core/services/audio_engine.dart';
 import '../../../core/services/music_query_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -507,7 +507,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
 
   Future<void> _playSong(SongModel song) async {
     // Check if file exists before playing
-    if (!song.fileExists) {
+    if (song.fileExists != true) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -538,7 +538,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     final audioService = AudioEngineService();
     await audioService.loadPlaylist(songs, initialIndex: 0);
     if (shuffle) {
-      await audioService.toggleShuffle();
+      audioService.toggleShuffle();
     }
     await audioService.play();
 

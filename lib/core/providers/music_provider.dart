@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:on_audio_query/on_audio_query.dart' hide SongModel;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song_model.dart';
+import '../models/folder_model.dart';
 import '../services/music_query_service.dart';
 import 'audio_provider.dart';
 
@@ -140,7 +141,7 @@ final recentlyAddedProvider = Provider<List<SongModel>>((ref) {
 });
 
 // Folders Provider
-final foldersProvider = Provider<List<String>>((ref) {
+final foldersProvider = FutureProvider<List<FolderModel>>((ref) async {
   final service = ref.watch(musicQueryServiceProvider);
   return service.getFolders();
 });
@@ -188,6 +189,23 @@ Future<void> loadPersistedFavorites(WidgetRef ref) async {
 // User Playlists State
 final userPlaylistsProvider = StateProvider<List<PlaylistEntry>>((ref) => []);
 
+/// Add a song to a playlist
+void addSongToPlaylist(WidgetRef ref, String playlistId, String songId) {
+  final playlists = ref.read(userPlaylistsProvider);
+  final updatedPlaylists = playlists.map((playlist) {
+    if (playlist.id == playlistId) {
+      if (playlist.songIds.contains(songId)) {
+        return playlist; // Already in playlist
+      }
+      return playlist.copyWith(
+        songIds: [...playlist.songIds, songId],
+      );
+    }
+    return playlist;
+  }).toList();
+  ref.read(userPlaylistsProvider.notifier).state = updatedPlaylists;
+}
+
 /// A lightweight playlist entry for user-created playlists.
 class PlaylistEntry {
   final String id;
@@ -206,5 +224,76 @@ class PlaylistEntry {
       name: name ?? this.name,
       songIds: songIds ?? this.songIds,
     );
+  }
+}
+
+// Glassmorphism Theme Provider
+final glassmorphismProvider = StateProvider<bool>((ref) => false);
+
+// Paginated Songs Provider
+final paginatedSongsProvider = StateNotifierProvider<PaginatedSongsNotifier, AsyncValue<List<SongModel>>>((ref) {
+  return PaginatedSongsNotifier(ref);
+});
+
+final currentPageProvider = StateProvider<int>((ref) => 0);
+
+class PaginatedSongsNotifier extends StateNotifier<AsyncValue<List<SongModel>>> {
+  final Ref ref;
+  static const int pageSize = 200;
+  int _currentPage = 0;
+  List<SongModel> _allSongs = [];
+  List<SongModel> _loadedSongs = [];
+  bool _hasMore = true;
+  bool _isLoading = false;
+
+  PaginatedSongsNotifier(this.ref) : super(const AsyncValue.loading()) {
+    _loadFirstPage();
+  }
+
+  bool get hasMore => _hasMore;
+  bool get isLoading => _isLoading;
+
+  Future<void> _loadFirstPage() async {
+    try {
+      final allSongs = await ref.read(allSongsProvider.future);
+      _allSongs = allSongs;
+      _loadedSongs = _allSongs.take(pageSize).toList();
+      _hasMore = _allSongs.length > pageSize;
+      state = AsyncValue.data(_loadedSongs);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> loadNextPage() async {
+    if (!_hasMore || _isLoading) return;
+    
+    _isLoading = true;
+    _currentPage++;
+    
+    final start = _currentPage * pageSize;
+    final end = (start + pageSize).clamp(0, _allSongs.length);
+    
+    if (start >= _allSongs.length) {
+      _hasMore = false;
+      _isLoading = false;
+      return;
+    }
+    
+    final newSongs = _allSongs.sublist(start, end);
+    _loadedSongs.addAll(newSongs);
+    _hasMore = end < _allSongs.length;
+    
+    _isLoading = false;
+    state = AsyncValue.data(_loadedSongs);
+  }
+
+  Future<void> refresh() async {
+    _currentPage = 0;
+    _allSongs = [];
+    _loadedSongs = [];
+    _hasMore = true;
+    state = const AsyncValue.loading();
+    await _loadFirstPage();
   }
 }

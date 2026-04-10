@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/song_model.dart' as app;
+import '../models/folder_model.dart';
+import '../constants/app_constants.dart';
 
 /// Parse song maps in a background isolate for large libraries.
 List<app.SongModel> _parseSongsIsolate(List<Map<String, dynamic>> rawMaps) {
@@ -29,6 +33,15 @@ class MusicQueryService {
   List<ArtistModel> get artists => _cachedArtists;
   SongSortType get currentSortType => _currentSortType;
   OrderType get currentOrderType => _currentOrderType;
+
+  static const List<String> _ignoredFolderPatterns = [
+    '/Android/data/',
+    '/Android/obb/',
+    '/Android/media/com.android.providers.media/',
+    '/.thumbnails/',
+    '/.cache/',
+    '/Notifications/',
+  ];
 
   /// Check current permission status without requesting.
   Future<bool> hasPermission() async {
@@ -174,16 +187,77 @@ class MusicQueryService {
   }
 
   /// Get unique folders containing music files.
-  List<String> getFolders() {
-    final folders = <String>{};
+  /// Results are cached in Hive for 7 days.
+  Future<List<FolderModel>> getFolders() async {
+    // Try to get from cache first
+    final cached = await _getCachedFolders();
+    if (cached != null) {
+      return cached;
+    }
+
+    final folderMap = <String, List<String>>{};
+    
     for (final song in _cachedSongs) {
       final folder = song.folderPath;
       if (folder.isNotEmpty) {
-        folders.add(folder);
+        final isIgnored = _ignoredFolderPatterns.any(
+          (pattern) => folder.toLowerCase().contains(pattern.toLowerCase()),
+        );
+        if (!isIgnored) {
+          folderMap.putIfAbsent(folder, () => []).add(song.id);
+        }
       }
     }
-    final sorted = folders.toList()..sort();
-    return sorted;
+
+    final folders = folderMap.entries.map((entry) {
+      final firstSongId = entry.value.isNotEmpty ? entry.value.first : null;
+      return FolderModel.fromSongPaths(entry.key, entry.value, firstSongId);
+    }).toList();
+
+    folders.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    
+    // Cache the result
+    await _cacheFolders(folders);
+    
+    return folders;
+  }
+
+  Future<List<FolderModel>?> _getCachedFolders() async {
+    try {
+      final box = await Hive.openBox(AppConstants.foldersBox);
+      final timestamp = box.get('folders_timestamp');
+      final cached = box.get('folders_cache');
+      
+      if (cached != null && timestamp != null) {
+        final cacheTime = DateTime.parse(timestamp);
+        if (DateTime.now().difference(cacheTime) < AppConstants.folderCacheDuration) {
+          return (cached as List).map((e) => FolderModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        }
+      }
+    } catch (e) {
+      // Cache miss or error, return null
+    }
+    return null;
+  }
+
+  Future<void> _cacheFolders(List<FolderModel> folders) async {
+    try {
+      final box = await Hive.openBox(AppConstants.foldersBox);
+      await box.put('folders_cache', folders.map((f) => f.toJson()).toList());
+      await box.put('folders_timestamp', DateTime.now().toIso8601String());
+    } catch (e) {
+      // Cache write failed
+    }
+  }
+
+  Future<void> refreshFolders() async {
+    try {
+      final box = await Hive.openBox(AppConstants.foldersBox);
+      await box.delete('folders_cache');
+      await box.delete('folders_timestamp');
+    } catch (e) {
+      // Refresh failed
+    }
   }
 
   /// Get songs in a specific folder.

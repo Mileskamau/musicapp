@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:musicply/core/models/song_model.dart';
+import 'package:musiq/core/models/song_model.dart';
 
 void main() {
   group('SongModel.fromMap', () {
@@ -147,7 +147,7 @@ void main() {
 
   group('SongModel.copyWith', () {
     test('should copy with new values', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '1',
         title: 'Original',
         artist: 'Artist',
@@ -177,7 +177,7 @@ void main() {
     });
 
     test('should preserve values not specified in copyWith', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '1',
         title: 'Song',
         artist: 'Artist',
@@ -204,7 +204,7 @@ void main() {
 
   group('SongModel.formattedDuration', () {
     test('should format duration correctly', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '1',
         title: 'Song',
         artist: 'Artist',
@@ -223,7 +223,7 @@ void main() {
     });
 
     test('should format zero duration', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '1',
         title: 'Song',
         artist: 'Artist',
@@ -242,7 +242,7 @@ void main() {
     });
 
     test('should format long duration', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '1',
         title: 'Song',
         artist: 'Artist',
@@ -263,7 +263,7 @@ void main() {
 
   group('SongModel.formattedSize', () {
     test('should format bytes', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '1',
         title: 'Song',
         artist: 'Artist',
@@ -282,7 +282,7 @@ void main() {
     });
 
     test('should format kilobytes', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '1',
         title: 'Song',
         artist: 'Artist',
@@ -301,7 +301,7 @@ void main() {
     });
 
     test('should format megabytes', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '1',
         title: 'Song',
         artist: 'Artist',
@@ -351,7 +351,7 @@ void main() {
 
   group('SongModel.toMap', () {
     test('should convert to map correctly', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '123',
         title: 'Test Song',
         artist: 'Test Artist',
@@ -381,7 +381,7 @@ void main() {
 
   group('SongModel.folderPath', () {
     test('should extract folder path correctly', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '1',
         title: 'Song',
         artist: 'Artist',
@@ -400,7 +400,7 @@ void main() {
     });
 
     test('should return empty for empty uri', () {
-      const song = SongModel(
+      final song = SongModel(
         id: '1',
         title: 'Song',
         artist: 'Artist',

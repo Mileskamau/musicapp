@@ -190,11 +190,7 @@ class SongModel extends Equatable {
 
   /// Check if the song file exists on the device.
   /// Cached after first check to avoid repeated synchronous file system calls.
-  bool? _fileExistsCache;
-  bool get fileExists {
-    _fileExistsCache ??= uri.isNotEmpty && File(uri).existsSync();
-    return _fileExistsCache!;
-  }
+  late final bool? fileExists = uri.isNotEmpty && File(uri).existsSync();
 
   /// Get the folder path containing this song.
   String get folderPath {

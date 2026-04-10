@@ -5,8 +5,8 @@ import 'package:on_audio_query/on_audio_query.dart' hide SongModel;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/song_model.dart';
-import '../../../core/providers/music_provider.dart';
-import '../../../core/services/audio_service.dart';
+import '../../../core/providers/music_provider.dart' show userPlaylistsProvider, addSongToPlaylist, searchQueryProvider, filteredSongsProvider, allSongsProvider;
+import '../../../core/services/audio_engine.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -307,7 +307,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _playSong(SongModel song) async {
-    if (!song.fileExists) {
+    if (song.fileExists != true) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -356,7 +356,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               title: const Text('Add to Queue'),
               onTap: () async {
                 Navigator.pop(context);
-                if (!song.fileExists) {
+                if (song.fileExists != true) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('File not found: ${song.title}'),
@@ -372,6 +372,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     SnackBar(content: Text('Added "${song.title}" to queue')),
                   );
                 }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.playlist_add_rounded),
+              title: const Text('Add to Playlist'),
+              onTap: () {
+                Navigator.pop(context);
+                _showAddToPlaylistDialog(song);
               },
             ),
             ListTile(
@@ -403,6 +411,54 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 );
               },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddToPlaylistDialog(SongModel song) {
+    final playlists = ref.read(userPlaylistsProvider);
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppConstants.spacingM),
+              child: Text(
+                'Add to Playlist',
+                style: AppTheme.headlineSmall,
+              ),
+            ),
+            if (playlists.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(AppConstants.spacingL),
+                child: Text(
+                  'No playlists yet. Create one first!',
+                  style: AppTheme.bodyMedium,
+                ),
+              )
+            else
+              ...playlists.map((playlist) => ListTile(
+                leading: const Icon(Icons.queue_music_rounded),
+                title: Text(playlist.name),
+                subtitle: Text('${playlist.songIds.length} songs'),
+                onTap: () {
+                  addSongToPlaylist(ref, playlist.id, song.id);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Added "${song.title}" to "${playlist.name}"')),
+                  );
+                },
+              )),
+            const SizedBox(height: AppConstants.spacingM),
           ],
         ),
       ),

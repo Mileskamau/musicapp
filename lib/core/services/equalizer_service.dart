@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_constants.dart';
+import 'audio_output_service.dart';
 
 /// Service that manages the Android equalizer, bass boost, virtualizer,
 /// and loudness enhancer effects from just_audio.
@@ -14,6 +16,8 @@ class EqualizerService {
 
   AndroidEqualizer? _equalizer;
   AndroidLoudnessEnhancer? _loudnessEffect;
+  OutputDevice _currentDevice = OutputDevice.speaker();
+  bool _deviceChanged = false;
 
   bool _isEnabled = false;
   String _currentPreset = 'Normal';
@@ -76,6 +80,33 @@ class EqualizerService {
   /// Check if equalizer is available on this device.
   bool get isAvailable => _equalizer != null;
 
+  /// Check if equalizer is supported with the current audio output.
+  /// Equalizer is typically not supported with Bluetooth audio output.
+  /// Returns false on iOS (not supported).
+  bool isSupported() {
+    if (!Platform.isAndroid) return false;
+    if (_equalizer == null) return false;
+    
+    // Equalizer may not work properly with Bluetooth
+    // This is a platform limitation
+    return _currentDevice.type != OutputDeviceType.bluetooth;
+  }
+
+  /// Update the current audio output device to check for equalizer support.
+  void updateCurrentDevice(OutputDevice device) {
+    final wasSupported = isSupported();
+    _currentDevice = device;
+    final isNowSupported = isSupported();
+    
+    if (wasSupported != isNowSupported) {
+      _errorController.add(
+        isNowSupported 
+          ? 'Equalizer is now available' 
+          : 'Equalizer is not supported with current audio output',
+      );
+    }
+  }
+
   /// Get the list of available equalizer bands.
   Future<List<AndroidEqualizerBand>?> getBands() async {
     if (_equalizer == null) return null;
@@ -85,19 +116,24 @@ class EqualizerService {
 
   /// Enable or disable the equalizer.
   Future<void> setEnabled(bool enabled) async {
+    if (!Platform.isAndroid || _equalizer == null) {
+      return;
+    }
+    
     _isEnabled = enabled;
     _enabledController.add(_isEnabled);
 
-    if (_equalizer != null) {
-      if (enabled) {
-        await _applySettings();
-      } else {
-        // Reset all bands to flat when disabled
-        final bands = await getBands();
-        if (bands != null) {
-          for (final band in bands) {
-            await band.setGain(0.0);
-          }
+    if (enabled) {
+      if (!isSupported()) {
+        return;
+      }
+      await _applySettings();
+    } else {
+      // Reset all bands to flat when disabled
+      final bands = await getBands();
+      if (bands != null) {
+        for (final band in bands) {
+          await band.setGain(0.0);
         }
       }
     }
@@ -107,6 +143,10 @@ class EqualizerService {
 
   /// Set the equalizer preset by name.
   Future<void> setPreset(String presetName) async {
+    if (!Platform.isAndroid || !isSupported()) {
+      return;
+    }
+    
     _currentPreset = presetName;
 
     if (AppConstants.equalizerPresets.containsKey(presetName)) {
@@ -134,6 +174,7 @@ class EqualizerService {
 
   /// Set a specific band value (in dB, range -12.0 to 12.0).
   Future<void> setBandValue(int bandIndex, double valueDb) async {
+    if (!Platform.isAndroid || !isSupported()) return;
     if (bandIndex < 0 || bandIndex >= _bandValues.length) return;
 
     _bandValues[bandIndex] = valueDb;

@@ -1,6 +1,6 @@
 class AppConstants {
   // App Info
-  static const String appName = 'MusicPly';
+  static const String appName = 'musiq';
   static const String appVersion = '1.0.0+1';
   
   // Hive Box Names
@@ -10,6 +10,8 @@ class AppConstants {
   static const String recentBox = 'recent';
   static const String mostPlayedBox = 'most_played';
   static const String favoritesSongIdsBox = 'favorite_song_ids';
+  static const String backgroundBox = 'background';
+  static const String lyricsBox = 'lyrics';
   
   // Shared Preferences Keys
   static const String themeKey = 'theme';
@@ -31,6 +33,13 @@ class AppConstants {
   static const String bassBoostKey = 'bass_boost';
   static const String virtualizerKey = 'virtualizer';
   static const String loudnessEnhancerKey = 'loudness_enhancer';
+  static const String glassmorphismKey = 'glassmorphism';
+  
+  // New Feature Keys
+  static const String lyricsModeKey = 'lyrics_mode';
+  static const String lyricsAutoScrollKey = 'lyrics_auto_scroll';
+  static const String carModeKey = 'car_mode';
+  static const String lastBackupKey = 'last_backup';
   
   // Audio Quality Options
   static const String qualityLow = 'low';
@@ -48,10 +57,42 @@ class AppConstants {
   static const double defaultVolume = 1.0;
   static const double defaultPlaybackSpeed = 1.0;
   
+  // Audio Focus Behavior
+  static const String audioFocusBehaviorKey = 'audio_focus_behavior';
+  static const String audioFocusDuck = 'duck';
+  static const String audioFocusPause = 'pause';
+  static const String audioFocusIgnore = 'ignore';
+
+  // Performance Tier
+  static const String performanceTierKey = 'performance_tier';
+  static const String performanceTierLow = 'low';
+  static const String performanceTierMid = 'mid';
+  static const String performanceTierHigh = 'high';
+  
+  // Battery Saver
+  static const String batterySaverKey = 'battery_saver';
+  
+  // Schema version for backup/restore
+  static const int currentSchemaVersion = 1;
+  
+  // Hive Box Names
+  static const String foldersBox = 'folders';
+  static const String tagBackupBox = 'tag_backup';
+  static const String paletteCacheBox = 'palette_cache';
+  
   // Pagination
-  static const int songPageSize = 100;
+  static const int songPageSize = 200;
   static const int recentPlaylistLimit = 50;
   static const int mostPlayedPlaylistLimit = 50;
+  
+  // Performance thresholds
+  static const int lowEndRamThreshold = 2048; // MB
+  static const int midEndRamThreshold = 4096; // MB
+  
+  // Cache durations
+  static const Duration folderCacheDuration = Duration(days: 7);
+  static const Duration tagBackupDuration = Duration(days: 7);
+  static const int minFreeSpaceRequired = 5; // MB
   
   // Song playback threshold for counting as "played" (percentage of duration)
   static const double playedThreshold = 0.8;

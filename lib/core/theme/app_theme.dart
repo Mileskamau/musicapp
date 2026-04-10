@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class AppTheme {
@@ -14,6 +15,12 @@ class AppTheme {
   static const Color errorColor = Color(0xFFFF5252);
   static const Color successColor = Color(0xFF4CAF50);
   static const Color warningColor = Color(0xFFFFC107);
+
+  // Glassmorphism specific colors
+  static const Color glassBackground = Color(0xFF0A0A0A);
+  static const Color glassSurface = Color(0x0DFFFFFF); // 5% white
+  static const Color glassBorder = Color(0x1AFFFFFF); // 10% white
+  static const Color glassHighlight = Color(0x1FFFFFFF); // 12% white
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
@@ -257,6 +264,184 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
         behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // Glassmorphism Theme
+  static ThemeData get glassTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      primaryColor: primaryColor,
+      scaffoldBackgroundColor: glassBackground,
+      colorScheme: const ColorScheme.dark(
+        primary: primaryColor,
+        secondary: secondaryColor,
+        tertiary: accentColor,
+        surface: glassSurface,
+        error: errorColor,
+        onPrimary: textPrimary,
+        onSecondary: textPrimary,
+        onSurface: textPrimary,
+        onError: textPrimary,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: titleLarge,
+        iconTheme: IconThemeData(color: textPrimary),
+      ),
+      cardTheme: CardThemeData(
+        color: glassSurface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: glassBorder, width: 1),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: textPrimary,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: labelLarge,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryColor,
+          side: const BorderSide(color: primaryColor),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: labelLarge,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primaryColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          textStyle: labelLarge,
+        ),
+      ),
+      iconTheme: const IconThemeData(
+        color: textPrimary,
+        size: 24,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.transparent,
+        selectedItemColor: primaryColor,
+        unselectedItemColor: textTertiary,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedLabelStyle: labelSmall,
+        unselectedLabelStyle: labelSmall,
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: primaryColor,
+        inactiveTrackColor: surfaceColor.withOpacity(0.3),
+        thumbColor: primaryColor,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+        trackHeight: 4,
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: primaryColor,
+        linearTrackColor: surfaceColor,
+      ),
+      dividerTheme: DividerThemeData(
+        color: glassBorder,
+        thickness: 1,
+        space: 1,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: glassSurface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: glassBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: glassBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
+        ),
+        hintStyle: bodyMedium,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: glassSurface,
+        selectedColor: primaryColor,
+        labelStyle: labelMedium,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: glassBorder),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: glassBorder),
+        ),
+        titleTextStyle: titleLarge,
+        contentTextStyle: bodyMedium,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: glassSurface,
+        contentTextStyle: bodyMedium,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: glassBorder),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// GlassContainer widget for frosted glass effect
+  static Widget glassContainer({
+    required Widget child,
+    double borderRadius = 16,
+    EdgeInsets? padding,
+    EdgeInsets? margin,
+    double blur = 10.0,
+    Color? backgroundColor,
+    Color? borderColor,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: Container(
+          padding: padding,
+          margin: margin,
+          decoration: BoxDecoration(
+            color: backgroundColor ?? glassSurface,
+            border: Border.all(color: borderColor ?? glassBorder),
+            borderRadius: BorderRadius.circular(borderRadius),
+          ),
+          child: child,
+        ),
       ),
     );
   }
